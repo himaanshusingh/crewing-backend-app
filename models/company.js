@@ -14,9 +14,8 @@ const companySchema = new Schema({
     type: String,
     required: [true, "Please provide a password"],
   },
-  cPassword: {
+  token: {
     type: String,
-    required: [true, "Please confirm your password"],
   },
 });
 

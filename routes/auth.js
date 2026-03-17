@@ -1,22 +1,29 @@
-// External Modules :-
 import express from "express";
 import bcrypt from "bcrypt";
 import { v4 as uuid } from "uuid";
 
 // Local Modules :-
 import Crew from "../models/crew.js";
+import Company from "../models/company.js";
 import isLoggedIn from "../middleware/isLoggedIn.js";
 import customResponse from "../utils/customResponse.js";
 
 const authRouter = express.Router();
 
-authRouter.post("/signup", async (req, res) => {
-  const { crewName, email, password } = req.body;
-  console.log("/signup Run");
+// ==========================================
+// CREW ROUTES
+// ==========================================
+
+authRouter.post("/crew/signup", async (req, res) => {
+  const { fullName, email, password, confirmPassword } = req.body;
   const saltRounds = 10;
 
-  if (!crewName || !email || !password) {
+  if (!fullName || !email || !password || !confirmPassword) {
     return customResponse(res, 400, false, "All fields are required");
+  }
+
+  if (password !== confirmPassword) {
+     return customResponse(res, 400, false, "Passwords do not match");
   }
 
   try {
@@ -28,25 +35,26 @@ authRouter.post("/signup", async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(password, saltRounds);
 
-    let newCrew = new Crew({ crewName, email, password: hashedPassword });
+    let newCrew = new Crew({ fullName, email, password: hashedPassword });
 
     newCrew.token = uuid();
-    console.log
     const savedCrew = await newCrew.save();
 
-    if (savedCrew) {
-      return customResponse( res, 200, true, "Crew Saved Successfully", "", savedCrew );
-    } // prettier-ignore
+    // Remove password and token before sending to client
+    const crewData = savedCrew.toObject();
+    delete crewData.password;
+
+    return customResponse( res, 200, true, "Crew Saved Successfully", "", crewData );
+
   } catch (err) {
+    console.error(err);
     return customResponse(res, 500, false, "", "Internal Server Error", null);
   }
 });
 
-// { Login Route } :-
-authRouter.post("/login", async (req, res) => {
+authRouter.post("/crew/login", async (req, res) => {
   const { email, password } = req.body;
 
-  // validations:
   if (!email || !password) {
     return customResponse(res, 400, false, "All fields are required");
   }
@@ -62,45 +70,127 @@ authRouter.post("/login", async (req, res) => {
 
     if (!isMatch) {
       return customResponse(res, 400, false, "", "Incorrect Password", null);
-    } // prettier-ignore
+    } 
 
-    // generate token:
     let token = uuid();
-
-    // save token
     foundCrew.token = token;
-
     let tokenedCrew = await foundCrew.save();
 
-    return customResponse(res, 200, true, "Crew LoggedIN", "", tokenedCrew);
+    const crewData = tokenedCrew.toObject();
+    delete crewData.password;
+
+    return customResponse(res, 200, true, "Crew Logged In", "", crewData);
   } catch (err) {
     return customResponse(res, 500, false, "", "Internal Server Error", null);
   }
 });
 
-authRouter.get("/zuku/", isLoggedIn, async (req, res) => {
-  let randomJoke = zuckerbergJokes[parseInt(Math.random() * 10)];
-  return customResponse(res, 200, true, "Joke is Ready", "", {
-    joke: randomJoke,
-    Crew: req.currentCrew,
-  });
-});
-
-// { Logout Route } :-
-authRouter.delete("/logout", isLoggedIn, async (req, res) => {
+authRouter.delete("/crew/logout", isLoggedIn, async (req, res) => {
   try {
+    if (!req.currentCrew) {
+        return customResponse(res, 400, false, "", "No Crew session found.", null);
+    }
+
     let foundCrew = req.currentCrew;
     foundCrew.token = "";
-    // delete foundCrew.token
-    // Crew.findOneAndDelete({ token });
-    console.log(foundCrew);
 
-    let loggedOutCrew = await foundCrew.save();
+    await foundCrew.save();
 
-    return customResponse(res, 200, true, " Crew LoggedOut", "", loggedOutCrew);
+    return customResponse(res, 200, true, "Crew LoggedOut", "", null);
   } catch (err) {
     return customResponse(res, 500, false, "", "Internal Server Error", null);
   }
+});
+
+// ==========================================
+// COMPANY ROUTES
+// ==========================================
+
+authRouter.post("/company/signup", async (req, res) => {
+  const { companyName, email, password, confirmPassword } = req.body;
+  const saltRounds = 10;
+
+  if (!companyName || !email || !password || !confirmPassword) {
+    return customResponse(res, 400, false, "All fields are required");
+  }
+
+  if (password !== confirmPassword) {
+     return customResponse(res, 400, false, "Passwords do not match");
+  }
+
+  try {
+    const foundCompany = await Company.findOne({ email });
+
+    if (foundCompany) {
+      return customResponse(res, 400, false, "", "Company already Exists");
+    }
+
+    const hashedPassword = await bcrypt.hash(password, saltRounds);
+
+    let newCompany = new Company({ companyName, email, password: hashedPassword });
+
+    newCompany.token = uuid();
+    const savedCompany = await newCompany.save();
+
+    const companyData = savedCompany.toObject();
+    delete companyData.password;
+
+    return customResponse( res, 200, true, "Company Saved Successfully", "", companyData );
+
+  } catch (err) {
+    console.error(err);
+    return customResponse(res, 500, false, "", "Internal Server Error", null);
+  }
+});
+
+authRouter.post("/company/login", async (req, res) => {
+    const { email, password } = req.body;
+  
+    if (!email || !password) {
+      return customResponse(res, 400, false, "All fields are required");
+    }
+  
+    try {
+      const foundCompany = await Company.findOne({ email });
+  
+      if (!foundCompany) {
+        return customResponse(res, 400, false, "", "Company doesn't exist", null);
+      }
+  
+      const isMatch = await bcrypt.compare(password, foundCompany.password);
+  
+      if (!isMatch) {
+        return customResponse(res, 400, false, "", "Incorrect Password", null);
+      } 
+  
+      let token = uuid();
+      foundCompany.token = token;
+      let tokenedCompany = await foundCompany.save();
+  
+      const companyData = tokenedCompany.toObject();
+      delete companyData.password;
+  
+      return customResponse(res, 200, true, "Company Logged In", "", companyData);
+    } catch (err) {
+      return customResponse(res, 500, false, "", "Internal Server Error", null);
+    }
+});
+
+authRouter.delete("/company/logout", isLoggedIn, async (req, res) => {
+    try {
+      if (!req.currentCompany) {
+          return customResponse(res, 400, false, "", "No Company session found.", null);
+      }
+  
+      let foundCompany = req.currentCompany;
+      foundCompany.token = "";
+  
+      await foundCompany.save();
+  
+      return customResponse(res, 200, true, "Company LoggedOut", "", null);
+    } catch (err) {
+      return customResponse(res, 500, false, "", "Internal Server Error", null);
+    }
 });
 
 export default authRouter;

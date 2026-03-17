@@ -1,5 +1,6 @@
 import customResponse from "../utils/customResponse.js";
 import Crew from "../models/crew.js";
+import Company from "../models/company.js";
 
 async function isLoggedIn(req, res, next) {
   let token = req.headers.authorization;
@@ -16,13 +17,19 @@ async function isLoggedIn(req, res, next) {
   try {
     const foundCrew = await Crew.findOne({ token: token });
 
-    if (!foundCrew) {
-      return customResponse(res, 400, false, "", "Daffa ho ja", null);
+    if (foundCrew) {
+       req.currentCrew = foundCrew;
+       return next();
     }
 
-    req.currentCrew = foundCrew;
+    const foundCompany = await Company.findOne({ token: token });
 
-    next();
+    if (foundCompany) {
+       req.currentCompany = foundCompany;
+       return next();
+    }
+
+    return customResponse(res, 401, false, "", "Unauthorized: Invalid or expired token", null);
   } catch (err) {
     return customResponse(res, 500, false, "", "Internal Server Error", null);
   }
