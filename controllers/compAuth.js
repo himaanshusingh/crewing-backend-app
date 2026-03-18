@@ -7,10 +7,10 @@ import Company from "../models/company.js";
 import customResponse from "../utils/customResponse.js";
 
 export const compSignup = async (req, res) => {
-  const { companyName, email, password, confirmPassword } = req.body;
+  const { name, email, password, confirmPassword } = req.body;
   const saltRounds = 10;
 
-  if (!companyName || !email || !password || !confirmPassword) {
+  if (!name || !email || !password || !confirmPassword) {
     return customResponse(res, 400, false, "All fields are required");
   }
 
@@ -27,11 +27,7 @@ export const compSignup = async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(password, saltRounds);
 
-    let newCompany = new Company({
-      companyName,
-      email,
-      password: hashedPassword,
-    });
+    let newCompany = new Company({ name, email, password: hashedPassword });
 
     newCompany.token = uuid();
     const savedCompany = await newCompany.save();

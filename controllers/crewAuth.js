@@ -7,10 +7,10 @@ import Crew from "../models/crew.js";
 import customResponse from "../utils/customResponse.js";
 
 export const crewSignup = async (req, res) => {
-  const { fullName, email, password, confirmPassword } = req.body;
+  const { name, email, password, confirmPassword } = req.body;
   const saltRounds = 10;
 
-  if (!fullName || !email || !password || !confirmPassword) {
+  if (!name || !email || !password || !confirmPassword) {
     return customResponse(res, 400, false, "All fields are required");
   }
 
@@ -27,7 +27,7 @@ export const crewSignup = async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(password, saltRounds);
 
-    let newCrew = new Crew({ fullName, email, password: hashedPassword });
+    let newCrew = new Crew({ name, email, password: hashedPassword });
 
     newCrew.token = uuid();
     const savedCrew = await newCrew.save();

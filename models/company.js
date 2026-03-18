@@ -1,7 +1,7 @@
 import { model, Schema } from "mongoose";
 
 const companySchema = new Schema({
-  companyName: {
+  name: {
     type: String,
     required: [true, "Please provide your company Name"],
   },
